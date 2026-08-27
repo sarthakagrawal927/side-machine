@@ -24,6 +24,12 @@ The requirements below record the v0/v1 LAN baseline. For the current v2
 transport decision, this amendment and `docs/versions/v2.md` take precedence
 where the baseline says LAN-only or lists Tailscale as out of scope.
 
+The approved client topology also includes the owner's iPhone as a Tailscale
+peer. The phone may initiate SSH to either Mac through the private tailnet. The
+M1 worker is already configured to receive it; the M5 controller must have
+restricted Remote Login enabled before it can receive phone SSH. Tailscale
+provides connectivity only—the phone still requires an SSH client for a shell.
+
 ## Summary
 
 Create a zero-incremental-cost, LAN-only way to run persistent Claude Code and

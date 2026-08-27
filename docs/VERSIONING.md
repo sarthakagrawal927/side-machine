@@ -12,6 +12,7 @@ matching repository-root `VERSION` file.
 | `v1.0.0` | Bonjour / `.local` SSH | `side-chick`, health, speed, Herdr, key setup | First working implementation |
 | `v2.0.0` | Tailscale by default, LAN fallback | Same stable commands | Work across different networks |
 | `v2.0.1` | Tailscale by default, LAN fallback | Reliability patch | Work through macOS SSH privacy boundaries |
+| `v2.0.2` | Three-device Tailscale mesh | Documentation patch | M5 ↔ M1 and iPhone → either Mac |
 
 ## Compatibility policy
 

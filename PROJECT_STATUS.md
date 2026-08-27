@@ -2,7 +2,7 @@
 
 Last updated: 2026-08-27
 
-Current implementation version: `v2.0.1`
+Current implementation version: `v2.0.2`
 
 ## Why / What
 
@@ -35,7 +35,7 @@ orchestration, local model inference, and reboot-transparent sessions.
 ## Timeline
 
 - 2026-08-26 — standalone PRD-first project created.
-- 2026-08-27 — v1 commands and v2 private Tailscale transport released locally.
+- 2026-08-27 — v1 commands and v2 private Tailscale transport published.
 
 ## Products
 
@@ -51,12 +51,15 @@ orchestration, local model inference, and reboot-transparent sessions.
 - Controller `side-chick` helper for shell, reachability, status, watch, actual
   network speed tests, Herdr attach, and dedicated-key setup.
 - Persistent launchd services for Herdr and caffeinate validated on the worker.
+- Documented M5-to-M1 and iPhone-to-either-Mac Tailscale connectivity model.
 
 ## Todo / Planned / Deferred / Blocked
 
-1. Install and authenticate Tailscale on the controller.
-2. Install the v2 controller helper and verify `side-chick status` off-LAN.
-3. Prove Claude Code and Codex Herdr detach/reattach flows end to end.
-4. Validate worker reachability after a real controller sleep/network outage.
-5. Select project visibility and license before publishing.
-6. Create CI only when explicitly approved.
+1. Update the M5 controller helper to the current v2 patch.
+2. Verify `side-chick status` from the M5 after the worker-helper fix.
+3. Reconnect `iphone171` and verify phone-to-M1 SSH.
+4. Enable and verify restricted Remote Login on the M5 for phone access.
+5. Prove Claude Code and Codex Herdr detach/reattach flows end to end.
+6. Validate worker reachability after a real controller sleep/network outage.
+7. Select project visibility and license before publishing.
+8. Create CI only when explicitly approved.

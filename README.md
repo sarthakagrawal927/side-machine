@@ -1,6 +1,6 @@
 # Side Machine
 
-Current release: `v2.0.1`. See [versioning and releases](docs/VERSIONING.md)
+Current release: `v2.0.2`. See [versioning and releases](docs/VERSIONING.md)
 and the [changelog](CHANGELOG.md).
 
 Side Machine is a minimal, zero-incremental-cost pattern for offloading
@@ -47,11 +47,17 @@ worker do not need to share a Wi-Fi network. The controller must be signed in
 to the same tailnet. Use `side-chick lan` or set
 `SIDE_CHICK_TRANSPORT=lan` for the original Bonjour path.
 
+The supported three-device layout is M5 Mac → M1 side machine, plus iPhone →
+either Mac. See [device connectivity](docs/CONNECTIVITY.md) for the topology,
+current Tailscale names, phone setup, readiness matrix, and availability
+limits.
+
 ## Local helper installation
 
 On the worker:
 
 ```bash
+install -m 755 bin/side-chick ~/.local/bin/side-chick
 install -m 755 bin/side-machine-status ~/.local/bin/side-machine-status
 install -m 755 bin/side-machine-speed ~/.local/bin/side-machine-speed
 ```
@@ -63,7 +69,7 @@ On the controller, copy and install the helper:
 
 ```bash
 mkdir -p ~/.local/bin
-scp assistant@Assistants-MacBook-Pro.local:~/Desktop/side-machine/bin/side-chick ~/.local/bin/side-chick
+scp assistant@fleet-mac:.local/bin/side-chick ~/.local/bin/side-chick
 chmod 755 ~/.local/bin/side-chick
 ```
 

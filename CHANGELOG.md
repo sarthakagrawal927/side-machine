@@ -3,6 +3,13 @@
 Side Machine uses semantic version tags. See `docs/VERSIONING.md` for the
 release and migration policy.
 
+## [2.0.2] — 2026-08-27
+
+- Document the M5 controller, M1 worker, and iPhone Tailscale topology.
+- Add a connection-readiness matrix and phone-to-either-Mac setup.
+- Clarify that Tailscale supplies networking while phone terminal access still
+  requires SSH and an SSH client.
+
 ## [2.0.1] — 2026-08-27
 
 - Install worker helpers as real files so Tailscale SSH does not cross the
