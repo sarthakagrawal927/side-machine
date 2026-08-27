@@ -4,7 +4,7 @@ set -u
 
 HERDR_BIN=/opt/homebrew/bin/herdr
 TAILSCALE_BIN=/opt/homebrew/bin/tailscale
-TAILSCALE_SOCKET="${TAILSCALE_SOCKET:-/Users/assistant/Library/Application Support/Fleet Ops/mobile-control/tailscale/tailscaled.sock}"
+TAILSCALE_SOCKET="${TAILSCALE_SOCKET:-$HOME/Library/Application Support/Fleet Ops/mobile-control/tailscale/tailscaled.sock}"
 health=0
 
 if { [ -t 1 ] || [ "${SIDE_MACHINE_COLOR:-0}" = 1 ]; } && [ -z "${NO_COLOR:-}" ]; then

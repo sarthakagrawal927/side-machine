@@ -11,6 +11,7 @@ matching repository-root `VERSION` file.
 | `v0.0.0` | Same-LAN design only | PRD only | Original specification baseline |
 | `v1.0.0` | Bonjour / `.local` SSH | `side-chick`, health, speed, Herdr, key setup | First working implementation |
 | `v2.0.0` | Tailscale by default, LAN fallback | Same stable commands | Work across different networks |
+| `v2.0.1` | Tailscale by default, LAN fallback | Reliability patch | Work through macOS SSH privacy boundaries |
 
 ## Compatibility policy
 

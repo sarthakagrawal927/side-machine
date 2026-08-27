@@ -3,6 +3,14 @@
 Side Machine uses semantic version tags. See `docs/VERSIONING.md` for the
 release and migration policy.
 
+## [2.0.1] — 2026-08-27
+
+- Install worker helpers as real files so Tailscale SSH does not cross the
+  macOS Desktop privacy boundary through a symlink.
+- Automatically accept a new SSH host key on first use while continuing to
+  reject changed host keys.
+- Add SSH keepalives for connections that cross changing networks.
+
 ## [2.0.0] — 2026-08-27
 
 - Use the existing Tailscale `fleet-mac` node as the default transport.

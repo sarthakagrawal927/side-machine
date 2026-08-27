@@ -2,7 +2,7 @@
 
 Last updated: 2026-08-27
 
-Current implementation version: `v2.0.0`
+Current implementation version: `v2.0.1`
 
 ## Why / What
 

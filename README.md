@@ -1,6 +1,6 @@
 # Side Machine
 
-Current release: `v2.0.0`. See [versioning and releases](docs/VERSIONING.md)
+Current release: `v2.0.1`. See [versioning and releases](docs/VERSIONING.md)
 and the [changelog](CHANGELOG.md).
 
 Side Machine is a minimal, zero-incremental-cost pattern for offloading
@@ -55,6 +55,9 @@ On the worker:
 install -m 755 bin/side-machine-status ~/.local/bin/side-machine-status
 install -m 755 bin/side-machine-speed ~/.local/bin/side-machine-speed
 ```
+
+Keep these as real files, not symlinks into `~/Desktop`: non-interactive SSH
+sessions may not have macOS privacy permission to traverse the Desktop folder.
 
 On the controller, copy and install the helper:
 

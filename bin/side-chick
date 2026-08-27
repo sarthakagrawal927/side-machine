@@ -2,7 +2,7 @@
 
 set -u
 
-VERSION='2.0.0'
+VERSION='2.0.1'
 transport="${SIDE_CHICK_TRANSPORT:-tailscale}"
 lan_target="${SIDE_CHICK_LAN_TARGET:-assistant@Assistants-MacBook-Pro.local}"
 tailscale_target="${SIDE_CHICK_TAILSCALE_TARGET:-assistant@fleet-mac}"
@@ -23,9 +23,11 @@ remote_speed='"$HOME/.local/bin/side-machine-speed"'
 
 run_ssh() {
     if [ "$transport" = lan ] && [ -r "$identity" ]; then
-        ssh -i "$identity" -o IdentitiesOnly=yes "$@"
+        ssh -o StrictHostKeyChecking=accept-new -o ServerAliveInterval=15 \
+            -o ServerAliveCountMax=3 -i "$identity" -o IdentitiesOnly=yes "$@"
     else
-        ssh "$@"
+        ssh -o StrictHostKeyChecking=accept-new -o ServerAliveInterval=15 \
+            -o ServerAliveCountMax=3 "$@"
     fi
 }
 
@@ -126,9 +128,10 @@ case "$command" in
         ;;
     lan)
         if [ -r "$identity" ]; then
-            ssh -i "$identity" -o IdentitiesOnly=yes "$lan_target"
+            ssh -o StrictHostKeyChecking=accept-new -i "$identity" \
+                -o IdentitiesOnly=yes "$lan_target"
         else
-            ssh "$lan_target"
+            ssh -o StrictHostKeyChecking=accept-new "$lan_target"
         fi
         ;;
     transport)
@@ -142,8 +145,9 @@ case "$command" in
             printf 'Created dedicated key: %s\n' "$identity"
         fi
         printf 'Enter the worker password once to authorize the dedicated key.\n'
-        ssh "$lan_target" 'umask 077; mkdir -p "$HOME/.ssh"; touch "$HOME/.ssh/authorized_keys"; chmod 600 "$HOME/.ssh/authorized_keys"; key=$(cat); grep -qxF "$key" "$HOME/.ssh/authorized_keys" || printf "%s\n" "$key" >> "$HOME/.ssh/authorized_keys"' < "$identity.pub"
-        if ssh -i "$identity" -o IdentitiesOnly=yes -o BatchMode=yes -o ConnectTimeout=5 \
+        ssh -o StrictHostKeyChecking=accept-new "$lan_target" 'umask 077; mkdir -p "$HOME/.ssh"; touch "$HOME/.ssh/authorized_keys"; chmod 600 "$HOME/.ssh/authorized_keys"; key=$(cat); grep -qxF "$key" "$HOME/.ssh/authorized_keys" || printf "%s\n" "$key" >> "$HOME/.ssh/authorized_keys"' < "$identity.pub"
+        if ssh -o StrictHostKeyChecking=accept-new -i "$identity" \
+            -o IdentitiesOnly=yes -o BatchMode=yes -o ConnectTimeout=5 \
             "$lan_target" true; then
             printf 'Passwordless LAN fallback is ready.\n'
         else
