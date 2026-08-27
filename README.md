@@ -1,11 +1,11 @@
 # Side Machine
 
-Current release: `v1.0.0`. See [versioning and releases](docs/VERSIONING.md)
+Current release: `v2.0.0`. See [versioning and releases](docs/VERSIONING.md)
 and the [changelog](CHANGELOG.md).
 
 Side Machine is a minimal, zero-incremental-cost pattern for offloading
 persistent Claude Code and Codex CLI sessions from a primary Mac to a spare Mac
-on the same local network.
+over a private Tailscale tailnet, with same-LAN SSH retained as a fallback.
 
 It uses native macOS Remote Login, OpenSSH, Herdr, caffeinate, and independent
 Git checkouts. tmux remains installed as a recovery fallback. It is not a
@@ -13,8 +13,8 @@ custom control plane.
 
 ## Status
 
-Worker setup and health tooling validated locally; controller helper and
-dedicated-key setup are ready to install.
+Worker setup, Tailscale transport, and health tooling are validated locally;
+the controller helper is ready to install.
 
 Read [the product requirements document](docs/PRD.md) before setup or
 implementation.
@@ -28,6 +28,8 @@ side-chick status
 side-chick speed
 side-chick watch
 side-chick herdr
+side-chick lan
+side-chick transport
 side-chick version
 ```
 
@@ -39,6 +41,11 @@ throughput. Watch mode retries after outages and uses passwordless SSH to avoid
 repeated prompts. Run `side-chick setup-key` once to create and authorize a
 dedicated key; never store the account password in the command or a dotfile.
 Herdr owns persistent agent terminals; direct SSH remains the recovery path.
+
+v2 uses the existing Tailscale node `fleet-mac` by default, so controller and
+worker do not need to share a Wi-Fi network. The controller must be signed in
+to the same tailnet. Use `side-chick lan` or set
+`SIDE_CHICK_TRANSPORT=lan` for the original Bonjour path.
 
 ## Local helper installation
 
@@ -64,14 +71,15 @@ Ensure `~/.local/bin` is on the controller's `PATH`, then remove any older
 
 In scope:
 
-- LAN-only controller-to-worker access;
+- private Tailscale or same-LAN controller-to-worker access;
 - persistent Claude Code and Codex terminal sessions;
 - passwordless SSH, Herdr persistence, and worker status;
 - small, reversible, agent-executable setup steps.
 
 Out of scope:
 
-- Coder, containers, Kubernetes, Tailscale, Headscale, and public SSH;
+- Coder, containers, Kubernetes, Headscale, and public SSH;
+- Tailscale subnet routing, exit-node behavior, and public sharing;
 - cloud scheduling, queues, dashboards, or synchronized filesystems;
 - local model inference;
 - hiding worker reboot or MacBook lid-close limitations.

@@ -3,6 +3,8 @@
 set -u
 
 HERDR_BIN=/opt/homebrew/bin/herdr
+TAILSCALE_BIN=/opt/homebrew/bin/tailscale
+TAILSCALE_SOCKET="${TAILSCALE_SOCKET:-/Users/assistant/Library/Application Support/Fleet Ops/mobile-control/tailscale/tailscaled.sock}"
 health=0
 
 if { [ -t 1 ] || [ "${SIDE_MACHINE_COLOR:-0}" = 1 ]; } && [ -z "${NO_COLOR:-}" ]; then
@@ -111,6 +113,22 @@ if [ -n "$wifi_rssi" ]; then
     fi
 fi
 
+tailscale_ip=''
+tailscale_name=''
+if [ -x "$TAILSCALE_BIN" ] && [ -S "$TAILSCALE_SOCKET" ]; then
+    tailscale_ip="$($TAILSCALE_BIN --socket "$TAILSCALE_SOCKET" ip -4 2>/dev/null | tail -1 || true)"
+    if [ -n "$tailscale_ip" ]; then
+        tailscale_name="$($TAILSCALE_BIN --socket "$TAILSCALE_SOCKET" status 2>/dev/null | awk -v ip="$tailscale_ip" '$1==ip {print $2; exit}')"
+        tailscale_state="${green}● running${reset} · ${tailscale_name:-node} · $tailscale_ip"
+    else
+        tailscale_state="${yellow}● stopped${reset}"
+        health=1
+    fi
+else
+    tailscale_state="${yellow}● unavailable${reset}"
+    health=1
+fi
+
 if launchctl print "gui/$(id -u)/com.local.caffeinate" >/dev/null 2>&1 \
     && pgrep -x caffeinate >/dev/null 2>&1; then
     caffeinate_state="${green}● running${reset}"
@@ -158,6 +176,7 @@ printf '  Power           %s · %s%% %s\n' "${power_source:-unknown}" "${battery
 printf '  Uptime          %s\n' "$(uptime | sed 's/^[[:space:]]*//')"
 
 section 'NETWORK'
+printf '  Tailscale       %b\n' "$tailscale_state"
 if [ -n "$wifi_rate" ]; then
     printf '  Wi-Fi link      %s%s Mbps%s · %s · %s\n' "$bold$green" "$wifi_rate" "$reset" "$wifi_phy" "$wifi_channel"
     printf '  Signal          %s · %s\n' "$wifi_signal" "$wifi_quality"

@@ -11,8 +11,18 @@ Herdr replaces tmux as the primary persistent terminal and agent workspace
 manager. tmux remains installed as a direct recovery fallback. The approved
 controller helper now includes worker reachability, a visual health dashboard,
 Wi-Fi link and throughput checks, outage-aware watch mode, Herdr attachment,
-and dedicated SSH-key setup. All LAN-only, credential-safety, repository
-isolation, cost, and no-public-exposure requirements remain unchanged.
+and dedicated SSH-key setup. All credential-safety, repository-isolation,
+cost, and no-public-exposure requirements remain unchanged.
+
+Tailscale is approved as the v2 default transport using the existing
+`fleet-mac` node. Same-LAN Bonjour SSH remains the recovery path. This changes
+the original off-LAN non-goal only for private tailnet access; public SSH,
+router port forwarding, subnet routing, and exit-node behavior remain out of
+scope.
+
+The requirements below record the v0/v1 LAN baseline. For the current v2
+transport decision, this amendment and `docs/versions/v2.md` take precedence
+where the baseline says LAN-only or lists Tailscale as out of scope.
 
 ## Summary
 

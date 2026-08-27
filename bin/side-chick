@@ -2,18 +2,47 @@
 
 set -u
 
-VERSION='1.0.0'
-target="${SIDE_CHICK_TARGET:-assistant@Assistants-MacBook-Pro.local}"
+VERSION='2.0.0'
+transport="${SIDE_CHICK_TRANSPORT:-tailscale}"
+lan_target="${SIDE_CHICK_LAN_TARGET:-assistant@Assistants-MacBook-Pro.local}"
+tailscale_target="${SIDE_CHICK_TAILSCALE_TARGET:-assistant@fleet-mac}"
+tailscale_socket="${SIDE_CHICK_TAILSCALE_SOCKET:-}"
+case "$transport" in
+    tailscale) default_target="$tailscale_target" ;;
+    lan) default_target="$lan_target" ;;
+    *)
+        printf 'side-chick: SIDE_CHICK_TRANSPORT must be tailscale or lan\n' >&2
+        exit 2
+        ;;
+esac
+target="${SIDE_CHICK_TARGET:-$default_target}"
 host="${target#*@}"
 identity="${SIDE_CHICK_IDENTITY:-$HOME/.ssh/id_ed25519_side_chick}"
 remote_status='"$HOME/.local/bin/side-machine-status"'
 remote_speed='"$HOME/.local/bin/side-machine-speed"'
 
 run_ssh() {
-    if [ -r "$identity" ]; then
+    if [ "$transport" = lan ] && [ -r "$identity" ]; then
         ssh -i "$identity" -o IdentitiesOnly=yes "$@"
     else
         ssh "$@"
+    fi
+}
+
+run_tailscale() {
+    if [ -n "$tailscale_socket" ]; then
+        tailscale --socket "$tailscale_socket" "$@"
+    else
+        tailscale "$@"
+    fi
+}
+
+worker_reachable() {
+    if [ "$transport" = tailscale ]; then
+        command -v tailscale >/dev/null 2>&1 || return 1
+        run_tailscale ping --c 1 --timeout 3s --until-direct=false "$host" >/dev/null 2>&1
+    else
+        nc -z -w 3 "$host" 22 >/dev/null 2>&1
     fi
 }
 
@@ -21,16 +50,20 @@ usage() {
     cat <<'EOF'
 Usage:
   side-chick              Open an SSH shell
-  side-chick alive        Check whether the worker's SSH port is reachable
+  side-chick alive        Check the active transport and worker reachability
   side-chick status       Show one worker health snapshot
   side-chick speed        Run an actual Wi-Fi download/upload test
   side-chick watch [SEC]  Monitor health and reconnect after outages
   side-chick herdr        Attach to Herdr in ~/code
-  side-chick setup-key    Configure passwordless dedicated-key access
+  side-chick lan          Open a same-LAN fallback shell
+  side-chick transport    Print active transport and destination
+  side-chick setup-key    Configure the LAN fallback key
   side-chick version      Print the installed command version
   side-chick help         Show this help
 
-Set SIDE_CHICK_TARGET to override the SSH target.
+Default transport: Tailscale. Set SIDE_CHICK_TRANSPORT=lan for LAN fallback.
+Set SIDE_CHICK_TARGET to override the selected SSH target.
+Set SIDE_CHICK_TAILSCALE_SOCKET only for a custom local Tailscale daemon.
 EOF
 }
 
@@ -41,16 +74,16 @@ case "$command" in
         run_ssh "$target"
         ;;
     alive)
-        if nc -z -w 3 "$host" 22 >/dev/null 2>&1; then
-            printf 'Side Machine is reachable at %s:22\n' "$host"
+        if worker_reachable; then
+            printf 'Side Machine is reachable over %s at %s\n' "$transport" "$host"
         else
-            printf 'Side Machine is not reachable at %s:22\n' "$host" >&2
+            printf 'Side Machine is not reachable over %s at %s\n' "$transport" "$host" >&2
             exit 1
         fi
         ;;
     status)
-        if ! nc -z -w 3 "$host" 22 >/dev/null 2>&1; then
-            printf 'Side Machine is not reachable at %s:22\n' "$host" >&2
+        if ! worker_reachable; then
+            printf 'Side Machine is not reachable over %s at %s\n' "$transport" "$host" >&2
             exit 1
         fi
         if [ -t 1 ] && [ -z "${NO_COLOR:-}" ]; then
@@ -79,8 +112,8 @@ case "$command" in
         while :; do
             clear
             printf 'Side Machine watch — %s\n\n' "$(date '+%Y-%m-%d %H:%M:%S %Z')"
-            if ! nc -z -w 3 "$host" 22 >/dev/null 2>&1; then
-                printf 'OFFLINE: SSH is not reachable at %s:22\n' "$host"
+            if ! worker_reachable; then
+                printf 'OFFLINE: %s transport cannot reach %s\n' "$transport" "$host"
             elif ! run_ssh -o BatchMode=yes -o ConnectTimeout=5 -o ConnectionAttempts=1 \
                 "$target" "SIDE_MACHINE_COLOR=1 $remote_status"; then
                 printf '\nSSH is reachable, but passwordless health access failed.\n'
@@ -91,6 +124,16 @@ case "$command" in
     herdr)
         run_ssh -t "$target" 'cd "$HOME/code" && exec /opt/homebrew/bin/herdr'
         ;;
+    lan)
+        if [ -r "$identity" ]; then
+            ssh -i "$identity" -o IdentitiesOnly=yes "$lan_target"
+        else
+            ssh "$lan_target"
+        fi
+        ;;
+    transport)
+        printf 'transport=%s\ntarget=%s\n' "$transport" "$target"
+        ;;
     setup-key)
         mkdir -p "$HOME/.ssh"
         chmod 700 "$HOME/.ssh"
@@ -99,10 +142,10 @@ case "$command" in
             printf 'Created dedicated key: %s\n' "$identity"
         fi
         printf 'Enter the worker password once to authorize the dedicated key.\n'
-        ssh "$target" 'umask 077; mkdir -p "$HOME/.ssh"; touch "$HOME/.ssh/authorized_keys"; chmod 600 "$HOME/.ssh/authorized_keys"; key=$(cat); grep -qxF "$key" "$HOME/.ssh/authorized_keys" || printf "%s\n" "$key" >> "$HOME/.ssh/authorized_keys"' < "$identity.pub"
+        ssh "$lan_target" 'umask 077; mkdir -p "$HOME/.ssh"; touch "$HOME/.ssh/authorized_keys"; chmod 600 "$HOME/.ssh/authorized_keys"; key=$(cat); grep -qxF "$key" "$HOME/.ssh/authorized_keys" || printf "%s\n" "$key" >> "$HOME/.ssh/authorized_keys"' < "$identity.pub"
         if ssh -i "$identity" -o IdentitiesOnly=yes -o BatchMode=yes -o ConnectTimeout=5 \
-            "$target" true; then
-            printf 'Passwordless side-chick access is ready.\n'
+            "$lan_target" true; then
+            printf 'Passwordless LAN fallback is ready.\n'
         else
             printf 'Key authorization did not verify successfully.\n' >&2
             exit 1

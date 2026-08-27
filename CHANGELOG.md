@@ -3,11 +3,12 @@
 Side Machine uses semantic version tags. See `docs/VERSIONING.md` for the
 release and migration policy.
 
-## [2.0.0] — planned
+## [2.0.0] — 2026-08-27
 
 - Use the existing Tailscale `fleet-mac` node as the default transport.
-- Remove the same-Wi-Fi requirement while retaining LAN fallback.
+- Remove the same-Wi-Fi requirement while retaining explicit LAN fallback.
 - Surface Tailscale reachability and transport state in health output.
+- Keep the v1 command surface stable and add `lan` and `transport` commands.
 
 ## [1.0.0] — 2026-08-27
 

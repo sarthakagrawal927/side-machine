@@ -4,16 +4,17 @@ Also read and follow the shared Fleet standard at `../AGENTS.md`.
 
 ## Product boundary
 
-This project specifies and implements a minimal LAN-only remote Mac worker for
-persistent Claude Code and Codex CLI sessions. Read `docs/PRD.md` before making
-material changes.
+This project specifies and implements a minimal private-tailnet remote Mac
+worker for persistent Claude Code and Codex CLI sessions, with same-LAN SSH as
+a fallback. Read `docs/PRD.md` before making material changes.
 
-Keep the active stack limited to native macOS Remote Login, OpenSSH, Herdr
-(with tmux retained only as a recovery fallback), caffeinate, Git, Claude Code,
-Codex CLI, and optional Cursor Remote SSH. Herdr replaced tmux as the primary
-multiplexer by owner decision on 2026-08-27.
+Keep the active stack limited to native macOS Remote Login, OpenSSH, Tailscale,
+Herdr (with tmux retained only as a recovery fallback), caffeinate, Git, Claude
+Code, Codex CLI, and optional Cursor Remote SSH. Herdr replaced tmux as the
+primary multiplexer and Tailscale became the default transport by owner
+decision on 2026-08-27.
 
-Do not introduce Coder, Colima, Docker, Kubernetes, Tailscale, Headscale,
+Do not introduce Coder, Colima, Docker, Kubernetes, Headscale,
 monitoring services, a database, a web control plane, or a custom scheduler
 without a new owner decision that changes the PRD.
 
