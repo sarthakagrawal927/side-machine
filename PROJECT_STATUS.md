@@ -1,6 +1,8 @@
 # Side Machine — PROJECT STATUS
 
-Last updated: 2026-08-26
+Last updated: 2026-08-27
+
+Current implementation version: `v1.0.0`
 
 ## Why / What
 
@@ -21,7 +23,7 @@ orchestration, local model inference, and reboot-transparent sessions.
 ### External
 
 - macOS Remote Login and OpenSSH
-- tmux
+- Herdr, with tmux retained as a recovery fallback
 - Claude Code and an eligible account
 - Codex CLI and an eligible account
 
@@ -42,12 +44,16 @@ orchestration, local model inference, and reboot-transparent sessions.
 
 - Complete implementation PRD with phase gates, acceptance tests, rollback,
   and agent handoff prompt.
+- Worker health dashboard with CPU, memory, disk, power, Wi-Fi link quality,
+  Herdr sessions, agent counts, and service state.
+- Controller `side-chick` helper for shell, reachability, status, watch, actual
+  network speed tests, Herdr attach, and dedicated-key setup.
+- Persistent launchd services for Herdr and caffeinate validated on the worker.
 
 ## Todo / Planned / Deferred / Blocked
 
-1. Validate the PRD against the actual worker Mac.
-2. Implement dependency-free controller status and session helpers.
-3. Add worker tmux configuration and setup checks.
-4. Prove Claude Code and Codex detach/reattach flows end to end.
-5. Select project visibility and license before publishing.
-6. Create the remote repository and CI only when explicitly approved.
+1. Install the updated controller helper and run `side-chick setup-key`.
+2. Prove Claude Code and Codex Herdr detach/reattach flows end to end.
+3. Validate worker reachability after a real controller sleep/network outage.
+4. Select project visibility and license before publishing.
+5. Create CI only when explicitly approved.

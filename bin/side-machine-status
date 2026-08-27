@@ -1,0 +1,181 @@
+#!/bin/sh
+
+set -u
+
+HERDR_BIN=/opt/homebrew/bin/herdr
+health=0
+
+if { [ -t 1 ] || [ "${SIDE_MACHINE_COLOR:-0}" = 1 ]; } && [ -z "${NO_COLOR:-}" ]; then
+    reset="$(printf '\033[0m')"
+    bold="$(printf '\033[1m')"
+    dim="$(printf '\033[2m')"
+    cyan="$(printf '\033[36m')"
+    green="$(printf '\033[32m')"
+    yellow="$(printf '\033[33m')"
+    magenta="$(printf '\033[35m')"
+else
+    reset=''
+    bold=''
+    dim=''
+    cyan=''
+    green=''
+    yellow=''
+    magenta=''
+fi
+
+bar() {
+    awk -v percent="${1:-0}" 'BEGIN {
+        width = 20
+        if (percent < 0) percent = 0
+        if (percent > 100) percent = 100
+        filled = int((percent * width / 100) + 0.5)
+        for (i = 0; i < filled; i++) printf "█"
+        for (i = filled; i < width; i++) printf "░"
+    }'
+}
+
+section() {
+    printf '\n%s%s%s\n' "$bold$cyan" "$1" "$reset"
+}
+
+computer_name="$(scutil --get ComputerName 2>/dev/null || hostname)"
+local_hostname="$(scutil --get LocalHostName 2>/dev/null || hostname -s)"
+top_snapshot="$(top -l 1 -n 0 2>/dev/null || true)"
+cpu_summary="$(printf '%s\n' "$top_snapshot" | awk '/CPU usage:/{sub(/^[[:space:]]*/, ""); print; exit}')"
+cpu_percent="$(printf '%s\n' "$cpu_summary" | awk '{for (i=1; i<=NF; i++) if ($i == "idle") {gsub(/%/, "", $(i-1)); printf "%.0f", 100-$(i-1); exit}}')"
+cpu_percent="${cpu_percent:-0}"
+
+memory_summary="$(printf '%s\n' "$top_snapshot" | awk '/PhysMem:/{sub(/^[[:space:]]*/, ""); print; exit}')"
+memory_used="$(printf '%s\n' "$memory_summary" | awk '{print $2}')"
+memory_total_gib="$(sysctl -n hw.memsize 2>/dev/null | awk '{printf "%.0f", $1/1073741824}')"
+memory_percent="$(printf '%s\n' "$memory_used $memory_total_gib" | awk '{value=$1; unit=value; gsub(/[0-9.]/, "", unit); gsub(/[^0-9.]/, "", value); if (unit=="M") value=value/1024; if ($2>0) printf "%.0f", value*100/$2; else print 0}')"
+
+disk_line="$(df -h /System/Volumes/Data 2>/dev/null | awk 'NR==2 {print $3 "\t" $2 "\t" $4 "\t" $5}')"
+disk_used="$(printf '%s\n' "$disk_line" | awk -F '\t' '{print $1}')"
+disk_total="$(printf '%s\n' "$disk_line" | awk -F '\t' '{print $2}')"
+disk_available="$(printf '%s\n' "$disk_line" | awk -F '\t' '{print $3}')"
+disk_percent="$(printf '%s\n' "$disk_line" | awk -F '\t' '{gsub(/%/, "", $4); print $4+0}')"
+
+power_output="$(pmset -g batt 2>/dev/null || true)"
+power_source="$(printf '%s\n' "$power_output" | awk 'NR==1 {gsub(/Now drawing from /, ""); gsub(/\047/, ""); print}')"
+battery_line="$(printf '%s\n' "$power_output" | sed -n '2p')"
+battery_percent="$(printf '%s\n' "$battery_line" | sed -E 's/.*[^0-9]([0-9]+)%;.*/\1/')"
+battery_state="$(printf '%s\n' "$battery_line" | sed -E 's/.*%;[[:space:]]*([^;]+);.*/\1/')"
+
+wifi_cache_dir="${TMPDIR:-/tmp}/side-machine-status-$(id -u)"
+wifi_cache="$wifi_cache_dir/wifi.tsv"
+wifi_refresh=1
+if [ -f "$wifi_cache" ]; then
+    wifi_age="$(( $(date +%s) - $(stat -f %m "$wifi_cache" 2>/dev/null || echo 0) ))"
+    if [ "$wifi_age" -lt 30 ]; then
+        wifi_refresh=0
+    fi
+fi
+if [ "$wifi_refresh" -eq 1 ]; then
+    mkdir -p "$wifi_cache_dir"
+    wifi_profile="$(system_profiler SPAirPortDataType -detailLevel full 2>/dev/null || true)"
+    wifi_data="$(printf '%s\n' "$wifi_profile" | awk '
+        /Current Network Information:/ { current=1; next }
+        current && /PHY Mode:/ { sub(/^.*PHY Mode:[[:space:]]*/, ""); phy=$0 }
+        current && /Channel:/ { sub(/^.*Channel:[[:space:]]*/, ""); channel=$0 }
+        current && /Signal \/ Noise:/ { sub(/^.*Signal \/ Noise:[[:space:]]*/, ""); signal=$0 }
+        current && /Transmit Rate:/ { sub(/^.*Transmit Rate:[[:space:]]*/, ""); rate=$0 }
+        current && /Other Local Wi-Fi Networks:/ { exit }
+        END { if (rate != "") printf "%s\t%s\t%s\t%s\n", rate, phy, channel, signal }
+    ')"
+    if [ -n "$wifi_data" ]; then
+        wifi_temp="$wifi_cache.tmp.$$"
+        printf '%s\n' "$wifi_data" > "$wifi_temp"
+        mv "$wifi_temp" "$wifi_cache"
+    fi
+fi
+
+wifi_rate=''
+wifi_phy=''
+wifi_channel=''
+wifi_signal=''
+if [ -f "$wifi_cache" ]; then
+    wifi_rate="$(awk -F '\t' '{print $1}' "$wifi_cache")"
+    wifi_phy="$(awk -F '\t' '{print $2}' "$wifi_cache")"
+    wifi_channel="$(awk -F '\t' '{print $3}' "$wifi_cache")"
+    wifi_signal="$(awk -F '\t' '{print $4}' "$wifi_cache")"
+fi
+wifi_rssi="$(printf '%s\n' "$wifi_signal" | awk '{print $1}')"
+wifi_quality='unknown'
+if [ -n "$wifi_rssi" ]; then
+    if [ "$wifi_rssi" -ge -50 ]; then wifi_quality='excellent'
+    elif [ "$wifi_rssi" -ge -60 ]; then wifi_quality='great'
+    elif [ "$wifi_rssi" -ge -67 ]; then wifi_quality='good'
+    elif [ "$wifi_rssi" -ge -75 ]; then wifi_quality='fair'
+    else wifi_quality='weak'
+    fi
+fi
+
+if launchctl print "gui/$(id -u)/com.local.caffeinate" >/dev/null 2>&1 \
+    && pgrep -x caffeinate >/dev/null 2>&1; then
+    caffeinate_state="${green}● running${reset}"
+else
+    caffeinate_state="${yellow}● stopped${reset}"
+    health=1
+fi
+
+herdr_status=''
+herdr_version=''
+session_rows=''
+if [ -x "$HERDR_BIN" ]; then
+    herdr_output="$($HERDR_BIN status server 2>/dev/null || true)"
+    herdr_status="$(printf '%s\n' "$herdr_output" | awk '/^[[:space:]]*status:/{print $2; exit}')"
+    herdr_version="$(printf '%s\n' "$herdr_output" | awk '/^[[:space:]]*version:/{print $2; exit}')"
+    session_rows="$($HERDR_BIN session list 2>/dev/null | sed -n '2,$p' || true)"
+fi
+if [ "$herdr_status" = running ]; then
+    herdr_state="${green}● running${reset}${herdr_version:+ ${dim}v$herdr_version${reset}}"
+else
+    herdr_state="${yellow}● stopped${reset}"
+    health=1
+fi
+
+codex_count="$(pgrep -x codex 2>/dev/null | wc -l | tr -d ' ')"
+claude_count="$(pgrep -x claude 2>/dev/null | wc -l | tr -d ' ')"
+session_count="$(printf '%s\n' "$session_rows" | awk 'NF{count++} END{print count+0}')"
+
+if [ "$health" -eq 0 ]; then
+    overall="${green}● HEALTHY${reset}"
+else
+    overall="${yellow}● DEGRADED${reset}"
+fi
+
+printf '%s╭──────────────────────────────────────────────────────────────╮%s\n' "$magenta" "$reset"
+printf '%s│%s  %sSIDE MACHINE%s  %-28s %b\n' "$magenta" "$reset" "$bold" "$reset" "$computer_name" "$overall"
+printf '%s│%s  %s.local  %s%s%s\n' "$magenta" "$reset" "$local_hostname" "$dim" "$(date '+%Y-%m-%d %H:%M:%S %Z')" "$reset"
+printf '%s╰──────────────────────────────────────────────────────────────╯%s\n' "$magenta" "$reset"
+
+section 'SYSTEM'
+printf '  CPU       %3s%%  %s  %s\n' "$cpu_percent" "$(bar "$cpu_percent")" "$cpu_summary"
+printf '  Memory    %3s%%  %s  %s / %sG\n' "$memory_percent" "$(bar "$memory_percent")" "$memory_used" "$memory_total_gib"
+printf '  Disk      %3s%%  %s  %s / %s · %s free\n' "$disk_percent" "$(bar "$disk_percent")" "$disk_used" "$disk_total" "$disk_available"
+printf '  Power           %s · %s%% %s\n' "${power_source:-unknown}" "${battery_percent:-?}" "${battery_state:-unknown}"
+printf '  Uptime          %s\n' "$(uptime | sed 's/^[[:space:]]*//')"
+
+section 'NETWORK'
+if [ -n "$wifi_rate" ]; then
+    printf '  Wi-Fi link      %s%s Mbps%s · %s · %s\n' "$bold$green" "$wifi_rate" "$reset" "$wifi_phy" "$wifi_channel"
+    printf '  Signal          %s · %s\n' "$wifi_signal" "$wifi_quality"
+else
+    printf '  Wi-Fi link      %sunavailable%s\n' "$yellow" "$reset"
+fi
+printf '  Speed test      run %sside-chick speed%s from the controller\n' "$bold" "$reset"
+
+section 'SERVICES'
+printf '  Caffeinate      %b\n' "$caffeinate_state"
+printf '  Herdr           %b · %s session(s)\n' "$herdr_state" "$session_count"
+printf '  Agents          Codex %s · Claude %s\n' "$codex_count" "$claude_count"
+
+if [ -n "$session_rows" ]; then
+    section 'HERDR SESSIONS'
+    printf '%s\n' "$session_rows" | awk '{printf "  %s\n", $0}'
+fi
+
+printf '\n%b\n' "$overall"
+
+exit "$health"

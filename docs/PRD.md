@@ -5,6 +5,15 @@ Version: 1.0
 Last reviewed: 2026-08-26  
 Reference topology: one primary Mac controlling one spare Apple Silicon Mac
 
+## Owner amendment — 2026-08-27
+
+Herdr replaces tmux as the primary persistent terminal and agent workspace
+manager. tmux remains installed as a direct recovery fallback. The approved
+controller helper now includes worker reachability, a visual health dashboard,
+Wi-Fi link and throughput checks, outage-aware watch mode, Herdr attachment,
+and dedicated SSH-key setup. All LAN-only, credential-safety, repository
+isolation, cost, and no-public-exposure requirements remain unchanged.
+
 ## Summary
 
 Create a zero-incremental-cost, LAN-only way to run persistent Claude Code and

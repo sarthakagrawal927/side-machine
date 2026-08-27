@@ -1,0 +1,122 @@
+#!/bin/sh
+
+set -u
+
+VERSION='1.0.0'
+target="${SIDE_CHICK_TARGET:-assistant@Assistants-MacBook-Pro.local}"
+host="${target#*@}"
+identity="${SIDE_CHICK_IDENTITY:-$HOME/.ssh/id_ed25519_side_chick}"
+remote_status='"$HOME/.local/bin/side-machine-status"'
+remote_speed='"$HOME/.local/bin/side-machine-speed"'
+
+run_ssh() {
+    if [ -r "$identity" ]; then
+        ssh -i "$identity" -o IdentitiesOnly=yes "$@"
+    else
+        ssh "$@"
+    fi
+}
+
+usage() {
+    cat <<'EOF'
+Usage:
+  side-chick              Open an SSH shell
+  side-chick alive        Check whether the worker's SSH port is reachable
+  side-chick status       Show one worker health snapshot
+  side-chick speed        Run an actual Wi-Fi download/upload test
+  side-chick watch [SEC]  Monitor health and reconnect after outages
+  side-chick herdr        Attach to Herdr in ~/code
+  side-chick setup-key    Configure passwordless dedicated-key access
+  side-chick version      Print the installed command version
+  side-chick help         Show this help
+
+Set SIDE_CHICK_TARGET to override the SSH target.
+EOF
+}
+
+command="${1:-shell}"
+
+case "$command" in
+    shell)
+        run_ssh "$target"
+        ;;
+    alive)
+        if nc -z -w 3 "$host" 22 >/dev/null 2>&1; then
+            printf 'Side Machine is reachable at %s:22\n' "$host"
+        else
+            printf 'Side Machine is not reachable at %s:22\n' "$host" >&2
+            exit 1
+        fi
+        ;;
+    status)
+        if ! nc -z -w 3 "$host" 22 >/dev/null 2>&1; then
+            printf 'Side Machine is not reachable at %s:22\n' "$host" >&2
+            exit 1
+        fi
+        if [ -t 1 ] && [ -z "${NO_COLOR:-}" ]; then
+            run_ssh -t -o ConnectTimeout=5 -o ConnectionAttempts=1 "$target" \
+                "SIDE_MACHINE_COLOR=1 $remote_status"
+        else
+            run_ssh -o ConnectTimeout=5 -o ConnectionAttempts=1 "$target" "$remote_status"
+        fi
+        ;;
+    speed)
+        run_ssh -t -o ConnectTimeout=5 -o ConnectionAttempts=1 "$target" "$remote_speed"
+        ;;
+    watch)
+        interval="${2:-2}"
+        case "$interval" in
+            ''|*[!0-9]*)
+                printf 'side-chick: watch interval must be a positive integer\n' >&2
+                exit 2
+                ;;
+        esac
+        if [ "$interval" -lt 1 ]; then
+            printf 'side-chick: watch interval must be at least 1 second\n' >&2
+            exit 2
+        fi
+        trap 'printf "\n"; exit 0' INT TERM
+        while :; do
+            clear
+            printf 'Side Machine watch — %s\n\n' "$(date '+%Y-%m-%d %H:%M:%S %Z')"
+            if ! nc -z -w 3 "$host" 22 >/dev/null 2>&1; then
+                printf 'OFFLINE: SSH is not reachable at %s:22\n' "$host"
+            elif ! run_ssh -o BatchMode=yes -o ConnectTimeout=5 -o ConnectionAttempts=1 \
+                "$target" "SIDE_MACHINE_COLOR=1 $remote_status"; then
+                printf '\nSSH is reachable, but passwordless health access failed.\n'
+            fi
+            sleep "$interval"
+        done
+        ;;
+    herdr)
+        run_ssh -t "$target" 'cd "$HOME/code" && exec /opt/homebrew/bin/herdr'
+        ;;
+    setup-key)
+        mkdir -p "$HOME/.ssh"
+        chmod 700 "$HOME/.ssh"
+        if [ ! -f "$identity" ]; then
+            ssh-keygen -q -t ed25519 -N '' -f "$identity" -C 'side-chick dedicated key'
+            printf 'Created dedicated key: %s\n' "$identity"
+        fi
+        printf 'Enter the worker password once to authorize the dedicated key.\n'
+        ssh "$target" 'umask 077; mkdir -p "$HOME/.ssh"; touch "$HOME/.ssh/authorized_keys"; chmod 600 "$HOME/.ssh/authorized_keys"; key=$(cat); grep -qxF "$key" "$HOME/.ssh/authorized_keys" || printf "%s\n" "$key" >> "$HOME/.ssh/authorized_keys"' < "$identity.pub"
+        if ssh -i "$identity" -o IdentitiesOnly=yes -o BatchMode=yes -o ConnectTimeout=5 \
+            "$target" true; then
+            printf 'Passwordless side-chick access is ready.\n'
+        else
+            printf 'Key authorization did not verify successfully.\n' >&2
+            exit 1
+        fi
+        ;;
+    version|-V|--version)
+        printf 'side-chick %s\n' "$VERSION"
+        ;;
+    help|-h|--help)
+        usage
+        ;;
+    *)
+        printf 'side-chick: unknown command: %s\n\n' "$command" >&2
+        usage >&2
+        exit 2
+        ;;
+esac

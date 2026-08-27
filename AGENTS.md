@@ -8,8 +8,10 @@ This project specifies and implements a minimal LAN-only remote Mac worker for
 persistent Claude Code and Codex CLI sessions. Read `docs/PRD.md` before making
 material changes.
 
-Keep the active stack limited to native macOS Remote Login, OpenSSH, tmux,
-caffeinate, Git, Claude Code, Codex CLI, and optional Cursor Remote SSH.
+Keep the active stack limited to native macOS Remote Login, OpenSSH, Herdr
+(with tmux retained only as a recovery fallback), caffeinate, Git, Claude Code,
+Codex CLI, and optional Cursor Remote SSH. Herdr replaced tmux as the primary
+multiplexer by owner decision on 2026-08-27.
 
 Do not introduce Coder, Colima, Docker, Kubernetes, Tailscale, Headscale,
 monitoring services, a database, a web control plane, or a custom scheduler

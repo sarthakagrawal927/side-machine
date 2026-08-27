@@ -1,0 +1,28 @@
+#!/bin/sh
+
+set -eu
+
+wifi_interface="$(networksetup -listallhardwareports 2>/dev/null | awk '/Hardware Port: (Wi-Fi|AirPort)/{getline; sub(/^Device: /, ""); print; exit}')"
+wifi_interface="${wifi_interface:-en0}"
+speed_result="$(mktemp -t side-machine-speed).json"
+trap 'rm -f "$speed_result"' EXIT INT TERM
+
+printf 'Running Apple networkQuality on %s (about 10 seconds)…\n' "$wifi_interface"
+networkQuality -c -I "$wifi_interface" -M 10 > "$speed_result"
+
+download="$(plutil -extract dl_throughput raw -o - "$speed_result")"
+upload="$(plutil -extract ul_throughput raw -o - "$speed_result")"
+latency="$(plutil -extract base_rtt raw -o - "$speed_result")"
+responsiveness="$(plutil -extract responsiveness raw -o - "$speed_result")"
+
+download_mbps="$(awk -v value="$download" 'BEGIN{printf "%.1f", value/1000000}')"
+upload_mbps="$(awk -v value="$upload" 'BEGIN{printf "%.1f", value/1000000}')"
+latency_ms="$(awk -v value="$latency" 'BEGIN{printf "%.0f", value}')"
+responsiveness_rpm="$(awk -v value="$responsiveness" 'BEGIN{printf "%.0f", value}')"
+
+printf '\n╭─ WI-FI SPEED ───────────────────────────────╮\n'
+printf '│  Download        %8s Mbps              │\n' "$download_mbps"
+printf '│  Upload          %8s Mbps              │\n' "$upload_mbps"
+printf '│  Base latency    %8s ms                │\n' "$latency_ms"
+printf '│  Responsiveness  %8s RPM               │\n' "$responsiveness_rpm"
+printf '╰─────────────────────────────────────────────╯\n'
